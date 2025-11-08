@@ -89,6 +89,8 @@ Functions available from the main web page:
 - `Reset to Defaults | 初期値に戻す`: Reset all settings to defaults
 - `Recalibrate | 再校正する`: Recalibrate (execute when device is in a stable state)
 
+![Webpage for configuring the MeganeMouse](MeganeMouse_WebUI.png)
+
 ## Configuration Options
 
 ### Sensitivity Levels
