@@ -95,29 +95,29 @@ Functions available from the main web page:
 
 ### Sensitivity Levels
 
-Choose the overall responsiveness of the head mouse:
+Choose the overall responsiveness of the MeganeMouse:
 
-- **Low | 低**: Slower, more precise movements - ideal for detailed work requiring accuracy
-- **Medium | 中**: Balanced speed and precision (default) - suitable for general use
-- **High | 高**: Faster, more responsive movements - optimal for fast navigation and gaming
+- `Low | 低`: Slower, more precise movements - ideal for detailed work requiring accuracy
+- `Medium | 中`: Balanced speed and precision (default) - suitable for general use
+- `High | 高`: Faster, more responsive movements - optimal for fast navigation and gaming
 
 ### Device Orientation
 
-Select the option that matches how you've mounted the AtomS3R on your glasses.
+Select the option that matches how you've mounted the device on your glasses.
 
 If mounted on the LEFT temple (arm):
 
-- Left-V (Default): Choose this if the device is vertical (USB-C port points down).
-- Left-H: Choose this if the device is horizontal (USB-C port points backward).
+- `Left-V | 左・ポート下向き` (Default): Choose this if the USB-C port of the device points down.
+- `Left-H | 左・ポート後ろ向き`: Choose this if the USB-C port of the device points backward.
 
 If mounted on the RIGHT temple (arm):
 
-- Right-V: Choose this if the device is vertical (USB-C port points down).
-- Right-H: Choose this if the device is horizontal (USB-C port points backward).
+- `Right-V | 右・ポート下向き`: Choose this if the USB-C port of the device points down.
+- `Right-H | 右・ポート後ろ向き`: Choose this if the USB-C port of the device points backward.
 
 If mounted on the BACK of the head (e.g., on a strap):
 
-- Back-V: Choose this if the device is vertical (USB-C port points down).
+- `Back-V | 後・ポート下向き`: Choose this if the USB-C port of the device points down.
 
 V (Vertical) means the USB-C port points downwards (relative to the glasses). H (Horizontal) means the USB-C port points backward.
 
@@ -125,8 +125,8 @@ V (Vertical) means the USB-C port points downwards (relative to the glasses). H 
 
 Connection mode selection:
 
-- **USB HID**: Wired connection via USB (shortest latency)
-- **Bluetooth HID**: Wireless connection via Bluetooth Low Energy
+- `USB HID`: Wired connection via USB (shortest latency)
+- `Bluetooth HID`: Wireless connection via Bluetooth Low Energy
 - Device restarts after mode changes for proper initialization
 
 ### Response Curve Settings
