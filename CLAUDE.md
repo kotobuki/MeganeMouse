@@ -4,13 +4,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-MeganeMouse is a head-controlled mouse device for the M5Stack AtomS3R development board. It converts head movements to cursor movement using the built-in gyroscope sensor, designed for individuals with limited hand mobility (particularly ALS patients). The device provides cursor movement via head tracking and supports an optional external switch for left mouse button clicks.
+MeganeMouse is a head-controlled mouse device for the M5Stack AtomS3R development board. It converts head movements to cursor movement using the built-in gyroscope sensor, designed for individuals with limited hand mobility (particularly ALS patients). The device provides cursor movement via head tracking and supports external switches for left and right mouse button clicks.
 
 **Platform**: Arduino/ESP32 (M5Stack AtomS3R)
 **Language**: C++ (Arduino framework)
 **Hardware**:
 - M5Stack AtomS3R with built-in 6-axis IMU sensor
 - Optional external switch on GPIO pin 1 for left mouse button
+- Optional external switch on GPIO pin 2 for right mouse button
 
 ## Building and Uploading
 
@@ -63,20 +64,27 @@ Mode switching is done via the WiFi web interface and requires a device restart.
 
 ### External Switch Support
 
-An external switch can be connected to **GPIO pin 1** to provide left mouse button functionality:
+External switches can be connected to provide left and right mouse button functionality:
 
-- **Hardware**: Connect switch between GPIO 1 and GND
-- **Configuration**: Pin initialized with `INPUT_PULLUP` (active LOW)
+- **Hardware**:
+  - Left button: Connect switch between GPIO 1 and GND
+  - Right button: Connect switch between GPIO 2 and GND
+- **Configuration**: Both pins initialized with `INPUT_PULLUP` (active LOW)
 - **Operation**: Switch pressed = button down, switch released = button up
-- **USB HID**: Uses `Mouse.press()` and `Mouse.release()` for state changes
-- **Bluetooth HID**: Button state encoded in HID report byte 2, bit 0
+- **USB HID**: Uses `Mouse.press(MOUSE_LEFT/MOUSE_RIGHT)` and `Mouse.release()` for state changes
+- **Bluetooth HID**: Button states encoded in HID report byte 2:
+  - Bit 0 (0x01) = Left button
+  - Bit 1 (0x02) = Right button
 
 **State Tracking**:
-- `switchIsPressed`: Current switch state (updated every 20ms)
-- `switchWasPressed`: Previous state for edge detection
+- `leftSwitchIsPressed` / `leftSwitchWasPressed`: Left button state
+- `rightSwitchIsPressed` / `rightSwitchWasPressed`: Right button state
+- Updated every 20ms in main loop
 
 **Status Display**: LCD shows real-time status bar at bottom:
-- Format: `USB | SW:ON` or `BT | SW:  ` (blank when not pressed)
+- Format: `USB | MED | *-` (connection mode | sensitivity | left/right buttons)
+- Button symbols: `*` = pressed, `-` = not pressed
+- Example: `BT | HI | **` (Bluetooth, High sensitivity, both buttons pressed)
 - Updates immediately on state change or every 100ms
 - Hidden when WiFi configuration is active
 
@@ -139,6 +147,20 @@ Each orientation remaps gyroscope axes (gx, gy, gz) to horizontal/vertical curso
 - Web interface at `192.168.4.1` for all configuration
 - Settings saved to ESP32 Preferences (flash memory)
 
+### On-Device Controls
+
+The M5AtomS3R button (BtnA - the LCD screen itself is the button) provides:
+
+- **Long press (2+ seconds)**: Toggle WiFi configuration on/off
+- **Double-click**: Cycle through sensitivity levels (LOW → MEDIUM → HIGH → LOW)
+- **Hold on boot (3+ seconds)**: Clear all Bluetooth pairings (Bluetooth mode only)
+
+**Sensitivity Cycling**:
+- Changes are saved to flash immediately
+- Status bar updates to show new sensitivity (LOW/MED/HI)
+- Serial output confirms the change
+- Three levels available: LOW (precise), MEDIUM (balanced), HIGH (fast)
+
 ### Adaptive Filtering & Response
 
 **Speed-Based IIR Filter**:
@@ -183,19 +205,21 @@ All tunable parameters are centralized in the `Config` namespace (lines 82-134):
 
 ## Important Code Locations
 
-- **Main loop**: Line 1517 - 50Hz update cycle
-- **External switch configuration**: Line 63 - SWITCH_PIN constant (GPIO 1)
-- **Switch state reading**: Line 1536 - Read switch every 20ms
-- **Status bar display**: Line 1113 - updateStatusBar() function
-- **USB HID button handling**: Line 1580-1585 - Press/release on state change
-- **Bluetooth HID button**: Line 1266 - sendBluetoothMouseMove() with button parameter
-- **Calibration function**: Line 513 - Enhanced calibration with progress display
-- **Mounting angle correction**: Line 300 - 3D rotation matrix application
-- **Axis mapping**: Line 1553 - Device orientation handling
-- **Web server handlers**: Line 750 - Configuration interface
-- **Bluetooth HID initialization**: Line 1187 - NimBLE setup
+- **Main loop**: Line 1629 - 50Hz update cycle
+- **External switch configuration**: Line 63-64 - LEFT_SWITCH_PIN (GPIO 1) and RIGHT_SWITCH_PIN (GPIO 2)
+- **Switch state reading**: Line 1590-1591 - Read both switches every 20ms
+- **Sensitivity cycling**: Line 450 - cycleSensitivity() function (double-click handler)
+- **Status bar display**: Line 1147 - updateStatusBar() function (shows connection, sensitivity, buttons)
+- **USB HID button handling**: Line 1697-1709 - Press/release for left and right buttons
+- **Bluetooth HID button**: Line 1364 - sendBluetoothMouseMove() with both button parameters
+- **Double-click detection**: Line 1558 - Calls cycleSensitivity() on double-click
+- **Calibration function**: Line 520 - Enhanced calibration with progress display
+- **Mounting angle correction**: Line 304 - 3D rotation matrix application
+- **Axis mapping**: Line 1647 - Device orientation handling
+- **Web server handlers**: Line 757 - Configuration interface
+- **Bluetooth HID initialization**: Line 1235 - NimBLE setup
 - **Speed-based IIR filter**: Line 205 - Adaptive filtering class
-- **Response curve**: Line 330 - Quadratic response function
+- **Response curve**: Line 334 - Quadratic response function
 
 ## Common Development Tasks
 
@@ -230,16 +254,26 @@ Edit `SpeedBasedIIRFilter` class parameters (lines 212-215):
 2. Add case in axis mapping switch statement (line 1553)
 3. Update web interface HTML (line 846)
 
-### Changing External Switch Pin
+### Changing External Switch Pins
 
-To use a different GPIO pin for the external switch:
+To use different GPIO pins for the external switches:
 
 ```cpp
-// Change line 63:
-const int SWITCH_PIN = 1;  →  const int SWITCH_PIN = <new_pin>;
+// Change lines 63-64:
+const int LEFT_SWITCH_PIN = 1;   →  const int LEFT_SWITCH_PIN = <new_pin>;
+const int RIGHT_SWITCH_PIN = 2;  →  const int RIGHT_SWITCH_PIN = <new_pin>;
 ```
 
-Ensure the chosen pin supports INPUT_PULLUP and is not used by other peripherals.
+Ensure the chosen pins support INPUT_PULLUP and are not used by other peripherals.
+
+### Modifying Sensitivity Levels
+
+To change sensitivity divisors or add new levels:
+
+1. Modify divisors in `Config` namespace (lines 118-120)
+2. Update the `SensitivityLevel` enum if adding levels (line 75)
+3. Update `cycleSensitivity()` function (line 450)
+4. Update status bar display switch-case (line 1178)
 
 ### Customizing Status Bar Display
 
@@ -248,6 +282,15 @@ Modify `updateStatusBar()` function (line 1113) to change:
 - Update frequency (DISPLAY_UPDATE_INTERVAL_MS, line 297)
 - Position on screen
 - Connection status indicators
+
+## Button Controls Summary
+
+**During Normal Operation**:
+- **Double-click**: Cycle sensitivity (LOW → MED → HI → LOW)
+- **Long press (2+ sec)**: Toggle WiFi configuration
+
+**During Boot**:
+- **Hold button (3+ sec)**: Clear all Bluetooth pairings (Bluetooth mode only)
 
 ## Bluetooth Pairing Management
 
@@ -290,9 +333,16 @@ The LCD screen uses colors to indicate device state:
 - **White text**: WiFi enabled or status bar text
 
 **Status Bar** (bottom of screen, normal operation):
-- Shows connection mode: `USB`, `BT`, `BT*` (not connected), or `DBG`
-- Shows switch state: `SW:ON` (pressed) or `SW:  ` (not pressed)
-- Example: `USB | SW:ON`
+- Shows three sections: connection mode | sensitivity | button states
+- Connection mode: `USB`, `BT`, `BT*` (not connected), or `DBG`
+- Sensitivity: `LOW`, `MED`, or `HI`
+- Button states: Two characters (`*` = pressed, `-` = not pressed)
+  - First character = left button
+  - Second character = right button
+- Examples:
+  - `USB | MED | *-` (USB mode, medium sensitivity, left button pressed)
+  - `BT | HI | --` (Bluetooth, high sensitivity, no buttons pressed)
+  - `USB | LOW | **` (USB mode, low sensitivity, both buttons pressed)
 
 ## Web Interface Endpoints
 

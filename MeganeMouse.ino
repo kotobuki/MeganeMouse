@@ -60,7 +60,8 @@ WebServer server(80);
 Preferences preferences;
 
 // ===== External Switch Configuration =====
-const int SWITCH_PIN = 1;  // External switch for left mouse button
+const int LEFT_SWITCH_PIN = 1;   // External switch for left mouse button
+const int RIGHT_SWITCH_PIN = 2;  // External switch for right mouse button
 
 // ===== Mathematical Constants =====
 #ifndef RAD_TO_DEG
@@ -288,9 +289,11 @@ bool wifiEnabled = false;  // Start with WiFi disabled to save power
 // Mouse mode control
 bool useBluetoothMouse = false;  // false = USB HID, true = Bluetooth HID (NimBLE)
 
-// External button state
-bool switchIsPressed = false;
-bool switchWasPressed = false;
+// External switch states
+bool leftSwitchIsPressed = false;
+bool leftSwitchWasPressed = false;
+bool rightSwitchIsPressed = false;
+bool rightSwitchWasPressed = false;
 
 // Display update control
 unsigned long lastDisplayUpdate = 0;
@@ -443,6 +446,46 @@ void resetSettings() {
   currentOrientation = LEFT_V;
 
   saveSettings();
+}
+
+// ===== Sensitivity Cycling =====
+// Cycle through sensitivity levels
+void cycleSensitivity() {
+  switch (currentSensitivity) {
+    case SENS_LOW:
+      currentSensitivity = SENS_MEDIUM;
+      break;
+    case SENS_MEDIUM:
+      currentSensitivity = SENS_HIGH;
+      break;
+    case SENS_HIGH:
+      currentSensitivity = SENS_LOW;
+      break;
+  }
+
+  // Save the new setting
+  saveSettings();
+
+  // Update display immediately
+  updateStatusBar();
+
+  // Print confirmation
+  const char* sensName;
+  switch (currentSensitivity) {
+    case SENS_HIGH:
+      sensName = "HIGH";
+      break;
+    case SENS_MEDIUM:
+      sensName = "MEDIUM";
+      break;
+    case SENS_LOW:
+      sensName = "LOW";
+      break;
+    default:
+      sensName = "UNKNOWN";
+      break;
+  }
+  Serial.printf("Sensitivity changed to: %s\n", sensName);
 }
 
 // ===== Calibration Support Functions =====
@@ -1144,9 +1187,23 @@ void updateStatusBar() {
   statusText = "DBG";  // Debug mode
 #endif
 
-  // Add switch state
-  statusText += " | SW:";
-  statusText += switchIsPressed ? "ON" : "  ";  // ON when pressed, blank when not
+  // Add sensitivity level
+  statusText += " | ";
+  switch (currentSensitivity) {
+    case SENS_HIGH:
+      statusText += "HI";
+      break;
+    case SENS_MEDIUM:
+      statusText += "MED";
+      break;
+    case SENS_LOW:
+      statusText += "LOW";
+      break;
+  }
+
+  statusText += " | ";
+  statusText += leftSwitchIsPressed ? "*" : "-";   // Left button
+  statusText += rightSwitchIsPressed ? "*" : "-";  // Right button
 
   // Calculate centered position (128 pixel width, each char is ~6 pixels wide)
   int textWidth = statusText.length() * 6;
@@ -1318,24 +1375,28 @@ void initBluetoothMouse() {
   M5.update();
 }
 
-void sendBluetoothMouseMove(int x, int y, bool leftButton) {
+void sendBluetoothMouseMove(int x, int y, bool leftButton, bool rightButton) {
   if (nimbleHid != nullptr && nimbleInputMouse != nullptr && nimbleConnected) {
     // Create 3-byte NimBLE mouse report: [x, y, buttons]
     int8_t report[3];
     report[0] = (int8_t)constrain(x, -128, 127);  // X movement
     report[1] = (int8_t)constrain(y, -128, 127);  // Y movement
-    report[2] = leftButton ? 0x01 : 0x00;         // Bit 0 = left button
+
+    // Encode button states: bit 0 = left, bit 1 = right
+    report[2] = 0;
+    if (leftButton) report[2] |= 0x01;   // Bit 0 = left button
+    if (rightButton) report[2] |= 0x02;  // Bit 1 = right button
 
     // Debug output
-    if (x != 0 || y != 0 || leftButton) {
-      Serial.printf("NimBLE Mouse: X=%d, Y=%d, Btn=%d, Report=[%02X %02X %02X]\n",
-                    x, y, leftButton, report[0], report[1], report[2]);
+    if (x != 0 || y != 0 || leftButton || rightButton) {
+      Serial.printf("NimBLE Mouse: X=%d, Y=%d, L=%d, R=%d, Report=[%02X %02X %02X]\n",
+                    x, y, leftButton, rightButton, report[0], report[1], report[2]);
     }
 
     nimbleInputMouse->setValue((uint8_t*)report, sizeof(report));
     nimbleInputMouse->notify();
   } else {
-    if (x != 0 || y != 0 || leftButton) {
+    if (x != 0 || y != 0 || leftButton || rightButton) {
       Serial.printf("NimBLE Mouse blocked: hid=%p, input=%p, connected=%d\n",
                     nimbleHid, nimbleInputMouse, nimbleConnected);
     }
@@ -1402,9 +1463,11 @@ void setup() {
   Serial.println("MeganeMouse - USB & Bluetooth");
   Serial.println("========================================\n");
 
-  // Initialize external switch pin
-  pinMode(SWITCH_PIN, INPUT_PULLUP);
-  Serial.printf("External switch initialized on pin %d\n", SWITCH_PIN);
+  // Initialize external switch pins
+  pinMode(LEFT_SWITCH_PIN, INPUT_PULLUP);
+  pinMode(RIGHT_SWITCH_PIN, INPUT_PULLUP);
+  Serial.printf("External switches initialized: Left=pin %d, Right=pin %d\n",
+                LEFT_SWITCH_PIN, RIGHT_SWITCH_PIN);
 
   // Check for Bluetooth pairing reset (button held on boot)
   M5.update();  // Update button state
@@ -1529,6 +1592,11 @@ void loop() {
     toggleWiFi();
   }
 
+  if (M5.BtnA.wasDoubleClicked()) {
+    // Double-click: Cycle sensitivity
+    cycleSensitivity();
+  }
+
   // Update at fixed interval
   unsigned long currentTime = millis();
   if (currentTime - lastUpdateTime < Config::UPDATE_INTERVAL_MS) {
@@ -1536,11 +1604,14 @@ void loop() {
   }
   lastUpdateTime = currentTime;
 
-  // Read external switch state (active LOW with pull-up)
-  switchIsPressed = (digitalRead(SWITCH_PIN) == LOW);
+  // Read external switch states (active LOW with pull-up)
+  leftSwitchIsPressed = (digitalRead(LEFT_SWITCH_PIN) == LOW);
+  rightSwitchIsPressed = (digitalRead(RIGHT_SWITCH_PIN) == LOW);
 
   // Update status bar display when switch state changes or periodically
-  if (switchIsPressed != switchWasPressed || (currentTime - lastDisplayUpdate >= DISPLAY_UPDATE_INTERVAL_MS)) {
+  if (leftSwitchIsPressed != leftSwitchWasPressed ||
+      rightSwitchIsPressed != rightSwitchWasPressed ||
+      (currentTime - lastDisplayUpdate >= DISPLAY_UPDATE_INTERVAL_MS)) {
     updateStatusBar();
     lastDisplayUpdate = currentTime;
   }
@@ -1630,27 +1701,35 @@ void loop() {
   mouseX = constrain(mouseX, -Config::MAX_MOUSE_SPEED, Config::MAX_MOUSE_SPEED);
   mouseY = constrain(mouseY, -Config::MAX_MOUSE_SPEED, Config::MAX_MOUSE_SPEED);
 
-  // Send mouse movement and button state
+  // Send mouse movement and button states
 #if DEBUG_MODE == 0
   if (useBluetoothMouse) {
-    // Bluetooth HID: send movement and button state together
-    sendBluetoothMouseMove(mouseX, mouseY, switchIsPressed);
+    // Bluetooth HID: send movement and button states together
+    sendBluetoothMouseMove(mouseX, mouseY, leftSwitchIsPressed, rightSwitchIsPressed);
   } else {
-    // USB HID: handle movement and button separately
+    // USB HID: handle movement and buttons separately
     if (mouseX != 0 || mouseY != 0) {
       Mouse.move(mouseX, mouseY);
     }
 
-    // Handle button press/release
-    if (switchIsPressed && !switchWasPressed) {
+    // Handle left button press/release
+    if (leftSwitchIsPressed && !leftSwitchWasPressed) {
       Mouse.press(MOUSE_LEFT);
-    } else if (!switchIsPressed && switchWasPressed) {
+    } else if (!leftSwitchIsPressed && leftSwitchWasPressed) {
       Mouse.release(MOUSE_LEFT);
+    }
+
+    // Handle right button press/release
+    if (rightSwitchIsPressed && !rightSwitchWasPressed) {
+      Mouse.press(MOUSE_RIGHT);
+    } else if (!rightSwitchIsPressed && rightSwitchWasPressed) {
+      Mouse.release(MOUSE_RIGHT);
     }
   }
 
-  // Update previous button state
-  switchWasPressed = switchIsPressed;
+  // Update previous button states
+  leftSwitchWasPressed = leftSwitchIsPressed;
+  rightSwitchWasPressed = rightSwitchIsPressed;
 #endif
 
 #if DEBUG_MODE == 1
