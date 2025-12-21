@@ -38,11 +38,13 @@ This glasses-mounted head mouse provides cursor movement functionality via head 
 - **Double-sided tape**: Such as 3M [KRG-15](https://www.scotch.jp/3M/ja_JP/p/d/v101693093/), ultra-strong yet removable
 
 ### Optional
+
 - **M5Stack [Tail Bat](https://docs.m5stack.com/en/atom/tailbat)**: Battery for Atom series (for battery operation)
 - **External switches**: For left and right mouse button operations
-  - Left button: Connect switch between GPIO 1 and GND
-  - Right button: Connect switch between GPIO 2 and GND
-  - Any momentary push button or accessibility switch that closes the circuit when pressed
+  - Left button: Connect a switch that closes the circuit only while pressed between GPIO 1 and GND
+  - Right button: Connect a switch that closes the circuit only while pressed between GPIO 2 and GND
+
+![Wiring diagram for connecting external switch for left mouse button](MeganeMouse_Wiring.png)
 
 ## Quick Start
 
@@ -249,10 +251,10 @@ Configure these if you want to fine-tune movement sensitivity in each direction 
 
 ### Tested Combinations
 
-- Arduino IDE: v2.3.6
-- M5Stack (board): v3.2.3
+- Arduino IDE: v2.3.7
+- M5Stack (board): v3.2.5
 - M5AtomS3 (library): v1.0.2
-- NimBLE-Arduino (library): v.2.3.6
+- NimBLE-Arduino (library): v.2.3.7
 
 ### System Architecture
 
