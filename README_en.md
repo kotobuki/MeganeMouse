@@ -4,7 +4,7 @@
 
 ![MeganeMouse: A Glasses-Mounted Head Mouse](MeganeMouse.jpeg)
 
-This glasses-mounted head mouse provides cursor movement functionality via head tracking. Optional external switches can be connected for left and right mouse button operations, or you can combine it with regular mouse/trackpad/external switches as needed.
+This open source glasses-mounted head mouse provides cursor movement functionality via head tracking. Optional external switches can be connected for left and right mouse button operations, or you can combine it with regular mouse/trackpad/external switches as needed.
 
 - **Development**: Shigeru Kobayashi (+ Claude Code, Gemini)
 - **Development Collaboration**: Hideo Arai
