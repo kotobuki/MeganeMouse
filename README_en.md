@@ -4,7 +4,7 @@
 
 ![MeganeMouse: A Glasses-Mounted Head Mouse](MeganeMouse.jpeg)
 
-This glasses-mounted head mouse provides only cursor movement functionality from typical mouse operations. You can combine it with regular mouse/trackpad/external switches for clicking operations as needed.
+This open source glasses-mounted head mouse provides cursor movement functionality via head tracking. Optional external switches can be connected for left and right mouse button operations, or you can combine it with regular mouse/trackpad/external switches as needed.
 
 - **Development**: Shigeru Kobayashi (+ Claude Code, Gemini)
 - **Development Collaboration**: Hideo Arai
@@ -19,21 +19,32 @@ This glasses-mounted head mouse provides only cursor movement functionality from
 
 ## Features
 
-- **Head Movement Control**: Convert head movements to precise cursor movement (no clicking)
+- **Head Movement Control**: Convert head movements to precise cursor movement
+- **External Switch Support**: Optional switches for left and right mouse buttons (GPIO 1 and 2)
+- **On-Device Sensitivity Control**: Double-click the device button to cycle through LOW/MEDIUM/HIGH sensitivity
 - **Dual Connection Modes**: USB HID (device name: `AtomS3R`) and Bluetooth HID (device name: `MeganeMouse-BT`) with runtime switching
 - **Flexible Device Orientation**: 5-way mounting configuration (Left-V/H, Right-V/H, Back-V)
 - **WiFi Configuration**: Easy setup and adjustment via web interface
 - **Customizable Response**: Adjustable sensitivity, response curves, and movement balance
 - **Mounting Angle Correction**: 3D rotation compensation for imperfect device mounting
-- **Visual Status Display**: LCD shows connection status and device information
+- **Visual Status Display**: LCD shows connection mode, sensitivity level, and button states
 
 ## Hardware Requirements
 
+### Required
 - **M5Stack [AtomS3R](https://docs.m5stack.com/en/core/AtomS3R)**: Development board
 - **USB-C cable**: For power and data connection
 - **Glasses**: With wide, flat temples (arms) to provide a stable mounting surface for the double-sided tape
 - **Double-sided tape**: Such as 3M [KRG-15](https://www.scotch.jp/3M/ja_JP/p/d/v101693093/), ultra-strong yet removable
-- **M5Stack [Tail Bat](https://docs.m5stack.com/en/atom/tailbat)**: Battery for Atom series (optional, for battery operation)
+
+### Optional
+
+- **M5Stack [Tail Bat](https://docs.m5stack.com/en/atom/tailbat)**: Battery for Atom series (for battery operation)
+- **External switches**: For left and right mouse button operations
+  - Left button: Connect a switch that closes the circuit only while pressed between GPIO 1 and GND
+  - Right button: Connect a switch that closes the circuit only while pressed between GPIO 2 and GND
+
+![Wiring diagram for connecting external switch for left mouse button](MeganeMouse_Wiring.png)
 
 ## Quick Start
 
@@ -91,15 +102,42 @@ Functions available from the main web page:
 
 ![Webpage for configuring the MeganeMouse](MeganeMouse_WebUI.png)
 
+## On-Device Controls
+
+The M5AtomS3R button (the LCD screen itself is pressable) provides quick access to common functions:
+
+**During Normal Operation:**
+- **Double-click**: Cycle through sensitivity levels (LOW → MEDIUM → HIGH → LOW)
+  - Changes are saved automatically to flash memory
+  - LCD status bar updates to show current sensitivity (LOW/MED/HI)
+- **Long press (2+ seconds)**: Toggle WiFi configuration on/off
+  - Screen flashes cyan when WiFi is enabled
+  - WiFi is disabled by default to save power
+
+**During Boot (power on):**
+- **Hold button (3+ seconds)**: Clear all Bluetooth pairings
+  - Only works in Bluetooth HID mode
+  - Useful when switching between computers
+  - Screen shows purple during the clearing process
+
+**LCD Status Bar:**
+The bottom of the screen shows real-time device status in the format: `Connection | Sensitivity | Buttons`
+- Connection: `USB`, `BT` (Bluetooth connected), or `BT*` (Bluetooth advertising)
+- Sensitivity: `LOW`, `MED`, or `HI`
+- Buttons: Two characters showing left and right button states (`*` = pressed, `-` = not pressed)
+- Example: `USB | MED | *-` means USB mode, medium sensitivity, left button pressed
+
 ## Configuration Options
 
 ### Sensitivity Levels
 
-Choose the overall responsiveness of the MeganeMouse:
+Choose the overall responsiveness of the MeganeMouse via the web interface, or double-click the device button to cycle through levels:
 
 - `Low | 低`: Slower, more precise movements - ideal for detailed work requiring accuracy
 - `Medium | 中`: Balanced speed and precision (default) - suitable for general use
 - `High | 高`: Faster, more responsive movements - optimal for fast navigation and gaming
+
+**Quick Tip:** Double-click the device button to quickly change sensitivity without accessing the web interface.
 
 ### Device Orientation
 
@@ -213,10 +251,10 @@ Configure these if you want to fine-tune movement sensitivity in each direction 
 
 ### Tested Combinations
 
-- Arduino IDE: v2.3.6
-- M5Stack (board): v3.2.3
+- Arduino IDE: v2.3.7
+- M5Stack (board): v3.2.5
 - M5AtomS3 (library): v1.0.2
-- NimBLE-Arduino (library): v.2.3.6
+- NimBLE-Arduino (library): v.2.3.7
 
 ### System Architecture
 
