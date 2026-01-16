@@ -92,11 +92,12 @@ External switches can be connected to provide left and right mouse button functi
 
 The device performs **automatic gyroscope calibration** on boot:
 
-1. **Motion Detection Phase** (Yellow screen): Waits for device to be stationary for 3 consecutive checks
+1. **Motion Detection Phase** (Yellow screen): Waits for device to be stationary for 3 consecutive checks (max 10 attempts)
 2. **Calibration Phase** (Red screen): Collects 64 samples to calculate gyro bias values
+   - **Note**: This phase is skipped entirely if motion detection times out (movement detected for all 10 attempts)
 3. **Result Phase**:
    - Green = Success (new calibration saved)
-   - Orange = Failed (using stored fallback calibration)
+   - Orange = Movement detected or calibration failed (using stored fallback calibration)
    - Red = Failed with no backup
 
 Calibration values are persisted in ESP32 flash memory (Preferences library) and used as fallback.
@@ -326,7 +327,7 @@ The LCD screen uses colors to indicate device state:
 - **Yellow**: Calibration motion detection
 - **Red**: Active calibration
 - **Green**: Calibration success / BT paired
-- **Orange**: Calibration failed (using old values)
+- **Orange**: Movement detected or calibration failed (using old values)
 - **Purple**: Clearing Bluetooth pairings
 - **Cyan**: Bluetooth advertising
 - **Black**: Normal operation (WiFi off) - shows status bar at bottom
