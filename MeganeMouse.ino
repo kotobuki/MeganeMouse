@@ -628,15 +628,43 @@ void performCalibration() {
   }
 
   if (totalStillnessAttempts >= MAX_STILLNESS_ATTEMPTS) {
-    Serial.println("Stillness detection timeout - proceeding with calibration anyway");
+    Serial.println("Stillness detection timeout - skipping calibration, using fallback values");
     M5.Display.fillScreen(ORANGE);
     M5.Display.setTextColor(BLACK);
     M5.Display.setTextSize(2);
     M5.Display.setCursor(0, 10);
-    M5.Display.printf("SENSOR\nNOISY\n");
-    M5.Display.printf("Proceeding\nanyway");
+    M5.Display.printf("MOVEMENT\nDETECTED\n");
+    M5.Display.printf("Using old\nvalues");
     M5.update();
-    delay(1000);
+    delay(2000);
+
+    // Use fallback calibration if available, otherwise use zero bias
+    if (fallbackCalibration.isValid) {
+      calibration = fallbackCalibration;
+      Serial.println("Using stored calibration values as fallback");
+      Serial.printf("Fallback Bias: X=%.2f, Y=%.2f, Z=%.2f\n",
+                    calibration.biasX, calibration.biasY, calibration.biasZ);
+    } else {
+      Serial.println("No stored calibration available - using zero bias");
+      calibration.biasX = 0;
+      calibration.biasY = 0;
+      calibration.biasZ = 0;
+      calibration.isValid = false;
+
+      // Show warning that no fallback is available
+      M5.Display.fillScreen(RED);
+      M5.Display.setTextColor(WHITE);
+      M5.Display.setTextSize(2);
+      M5.Display.setCursor(0, 10);
+      M5.Display.printf("NO BACKUP\nCAL. DATA\n");
+      M5.Display.printf("May drift");
+      M5.update();
+      delay(2000);
+    }
+
+    M5.Display.fillScreen(BLACK);
+    M5.update();
+    return;  // Skip calibration phase entirely
   }
 
   // Step 2: Perform Calibration with Progress Display
