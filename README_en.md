@@ -20,7 +20,7 @@ This open source glasses-mounted head mouse provides cursor movement functionali
 ## Features
 
 - **Head Movement Control**: Convert head movements to precise cursor movement
-- **External Switch Support**: Optional switches for left and right mouse buttons (GPIO 1 and 2)
+- **External Switch Support**: Optional switches for left and right mouse buttons (GPIO 1 and 2); configurable input mode (INPUT_PULLUP or INPUT) via web interface
 - **On-Device Sensitivity Control**: Double-click the device button to cycle through LOW/MEDIUM/HIGH sensitivity
 - **Dual Connection Modes**: USB HID (device name: `AtomS3R`) and Bluetooth HID (device name: `MeganeMouse-BT`) with runtime switching
 - **Flexible Device Orientation**: 5-way mounting configuration (Left-V/H, Right-V/H, Back-V)
@@ -41,8 +41,8 @@ This open source glasses-mounted head mouse provides cursor movement functionali
 
 - **M5Stack [Tail Bat](https://docs.m5stack.com/en/atom/tailbat)**: Battery for Atom series (for battery operation)
 - **External switches**: For left and right mouse button operations
-  - Left button: Connect a switch that closes the circuit only while pressed between GPIO 1 and GND
-  - Right button: Connect a switch that closes the circuit only while pressed between GPIO 2 and GND
+  - Left button: GPIO 1 — connect a normally-open switch between GPIO 1 and GND (default INPUT_PULLUP mode), or use an active-high sensor (INPUT mode)
+  - Right button: GPIO 2 — connect a normally-open switch between GPIO 2 and GND (INPUT_PULLUP mode only; disabled in INPUT mode)
 
 ![Wiring diagram for connecting external switch for left mouse button](MeganeMouse_Wiring.png)
 
@@ -166,6 +166,15 @@ Connection mode selection:
 - `USB HID`: Wired connection via USB (shortest latency)
 - `Bluetooth HID`: Wireless connection via Bluetooth Low Energy
 - Device restarts after mode changes for proper initialization
+
+### External Switch Input Mode
+
+Configure how the external switch pins detect button presses via the web interface:
+
+- `INPUT_PULLUP (active LOW)` (default): Uses the built-in pull-up resistor. Connect a normally-open switch between the GPIO pin and GND. Switch pressed = LOW signal.
+- `INPUT (active HIGH)`: For active-high sensors or switches with an external pull-down resistor. Switch pressed = HIGH signal.
+
+**Note**: When `INPUT` mode is selected, the right mouse button (GPIO 2) is disabled to prevent random clicks when only one sensor is connected.
 
 ### Response Curve Settings
 
