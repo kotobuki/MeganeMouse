@@ -97,6 +97,7 @@ static constexpr float DEFAULT_ADAPT_STRENGTH = 0.5f;
 static constexpr SensitivityLevel DEFAULT_SENSITIVITY = SENS_MEDIUM;
 static constexpr DeviceOrientation DEFAULT_ORIENTATION = LEFT_V;
 static constexpr bool DEFAULT_USE_BLUETOOTH_MOUSE = false;
+static constexpr bool DEFAULT_USE_PULLUP = true;
 static constexpr float DEFAULT_PITCH_CORRECTION = 0.0f;
 static constexpr float DEFAULT_ROLL_CORRECTION = 0.0f;
 static constexpr float DEFAULT_YAW_CORRECTION = 0.0f;
@@ -294,6 +295,7 @@ bool leftSwitchIsPressed = false;
 bool leftSwitchWasPressed = false;
 bool rightSwitchIsPressed = false;
 bool rightSwitchWasPressed = false;
+bool usePullup = true;  // true = INPUT_PULLUP (active LOW), false = INPUT (active HIGH)
 
 // Display update control
 unsigned long lastDisplayUpdate = 0;
@@ -388,6 +390,7 @@ void loadSettings() {
   horizontalBalance = preferences.getFloat("hBalance", Config::DEFAULT_HORIZONTAL_BALANCE);
   verticalBalance = preferences.getFloat("vBalance", Config::DEFAULT_VERTICAL_BALANCE);
   useBluetoothMouse = preferences.getBool("btMouse", Config::DEFAULT_USE_BLUETOOTH_MOUSE);
+  usePullup = preferences.getBool("usePullup", Config::DEFAULT_USE_PULLUP);
 
   // Ensure values are within valid ranges
   baseK = constrain(baseK, 0.1f, 2.0f);
@@ -429,6 +432,7 @@ void saveSettings() {
   preferences.putInt("sensitivity", (int)currentSensitivity);
   preferences.putInt("orientation", (int)currentOrientation);
   preferences.putBool("btMouse", useBluetoothMouse);
+  preferences.putBool("usePullup", usePullup);
   preferences.end();
 
   Serial.println("Settings saved to flash");
@@ -444,6 +448,7 @@ void resetSettings() {
   verticalBalance = 0.0f;
   currentSensitivity = Config::DEFAULT_SENSITIVITY;
   currentOrientation = LEFT_V;
+  usePullup = Config::DEFAULT_USE_PULLUP;
 
   saveSettings();
 }
@@ -875,6 +880,14 @@ void handleRoot() {
         }
       }
 
+      // Process switch input mode (INPUT_PULLUP vs INPUT)
+      if (server.hasArg("switchMode")) {
+        usePullup = (server.arg("switchMode") == "pullup");
+        uint8_t pinModeValue = usePullup ? INPUT_PULLUP : INPUT;
+        pinMode(LEFT_SWITCH_PIN, pinModeValue);
+        pinMode(RIGHT_SWITCH_PIN, pinModeValue);
+      }
+
       saveSettings();
 
       // Handle mode change (requires restart)
@@ -966,6 +979,18 @@ void handleRoot() {
   html += ">Bluetooth HID</label></p>";
   html += "<span class='info'>Changing the mode will cause a restart when the settings are applied.</span><br>";
   html += "<span class='info'>モードを変更すると設定反映時に再起動します。</span>";
+  html += "</div>";
+
+  html += "<div class='section'><h2>External Switch Input Mode | 外部スイッチ入力モード</h2>";
+  html += "<p><label><input type='radio' name='switchMode' value='pullup'";
+  if (usePullup) html += " checked";
+  html += ">INPUT_PULLUP (active LOW) — Built-in pull-up, switch connects pin to GND | 内部プルアップ、スイッチはGNDに接続</label></p>";
+
+  html += "<p><label><input type='radio' name='switchMode' value='input'";
+  if (!usePullup) html += " checked";
+  html += ">INPUT (active HIGH) — External pull-down or active-high sensor | 外部プルダウン／アクティブHIGH</label></p>";
+  html += "<span class='info'>INPUT_PULLUP: switch pressed = LOW. / INPUT: switch pressed = HIGH.</span><br>";
+  html += "<span class='info'>INPUT_PULLUP：スイッチ押下=LOW／INPUT：スイッチ押下=HIGH</span>";
   html += "</div>";
 
   html += "<div class='section'><h2>Response Curve</h2>";
@@ -1491,7 +1516,7 @@ void setup() {
   Serial.println("MeganeMouse - USB & Bluetooth");
   Serial.println("========================================\n");
 
-  // Initialize external switch pins
+  // Initialize external switch pins with default (re-applied after loadSettings)
   pinMode(LEFT_SWITCH_PIN, INPUT_PULLUP);
   pinMode(RIGHT_SWITCH_PIN, INPUT_PULLUP);
   Serial.printf("External switches initialized: Left=pin %d, Right=pin %d\n",
@@ -1569,6 +1594,12 @@ void setup() {
   // Load saved settings
   loadSettings();
 
+  // Re-apply switch pin mode now that settings are loaded
+  uint8_t pinModeValue = usePullup ? INPUT_PULLUP : INPUT;
+  pinMode(LEFT_SWITCH_PIN, pinModeValue);
+  pinMode(RIGHT_SWITCH_PIN, pinModeValue);
+  Serial.printf("Switch input mode: %s\n", usePullup ? "INPUT_PULLUP (active LOW)" : "INPUT (active HIGH)");
+
   // Load any stored calibration values before performing new calibration
   loadStoredCalibration();
 
@@ -1632,9 +1663,12 @@ void loop() {
   }
   lastUpdateTime = currentTime;
 
-  // Read external switch states (active LOW with pull-up)
-  leftSwitchIsPressed = (digitalRead(LEFT_SWITCH_PIN) == LOW);
-  rightSwitchIsPressed = (digitalRead(RIGHT_SWITCH_PIN) == LOW);
+  // Read external switch states
+  // INPUT_PULLUP: pressed = LOW (active LOW); INPUT: pressed = HIGH (active HIGH)
+  // Right button is disabled in INPUT mode to avoid random clicking when only one sensor is connected
+  int pressedLevel = usePullup ? LOW : HIGH;
+  leftSwitchIsPressed = (digitalRead(LEFT_SWITCH_PIN) == pressedLevel);
+  rightSwitchIsPressed = usePullup ? (digitalRead(RIGHT_SWITCH_PIN) == LOW) : false;
 
   // Update status bar display when switch state changes or periodically
   if (leftSwitchIsPressed != leftSwitchWasPressed ||

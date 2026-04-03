@@ -67,9 +67,12 @@ Mode switching is done via the WiFi web interface and requires a device restart.
 External switches can be connected to provide left and right mouse button functionality:
 
 - **Hardware**:
-  - Left button: Connect switch between GPIO 1 and GND
-  - Right button: Connect switch between GPIO 2 and GND
-- **Configuration**: Both pins initialized with `INPUT_PULLUP` (active LOW)
+  - Left button: GPIO 1 — normally-open switch to GND (INPUT_PULLUP mode), or active-high sensor (INPUT mode)
+  - Right button: GPIO 2 — normally-open switch to GND (INPUT_PULLUP mode only; disabled in INPUT mode)
+- **Configuration**: Pin input mode is user-configurable via web interface (`usePullup` setting):
+  - `INPUT_PULLUP` (default, active LOW): Built-in pull-up; switch closed to GND = pressed
+  - `INPUT` (active HIGH): External pull-down required; HIGH signal = pressed
+- **Right button restriction**: Disabled when `INPUT` mode is active to prevent random clicks from an unconnected pin
 - **Operation**: Switch pressed = button down, switch released = button up
 - **USB HID**: Uses `Mouse.press(MOUSE_LEFT/MOUSE_RIGHT)` and `Mouse.release()` for state changes
 - **Bluetooth HID**: Button states encoded in HID report byte 2:
@@ -78,7 +81,8 @@ External switches can be connected to provide left and right mouse button functi
 
 **State Tracking**:
 - `leftSwitchIsPressed` / `leftSwitchWasPressed`: Left button state
-- `rightSwitchIsPressed` / `rightSwitchWasPressed`: Right button state
+- `rightSwitchIsPressed` / `rightSwitchWasPressed`: Right button state (always false when `usePullup` is false)
+- `usePullup`: Switch input mode (true = INPUT_PULLUP active LOW, false = INPUT active HIGH)
 - Updated every 20ms in main loop
 
 **Status Display**: LCD shows real-time status bar at bottom:
@@ -203,6 +207,7 @@ All tunable parameters are centralized in the `Config` namespace (lines 82-134):
 - Adaptation strength (0.0-2.0, default 0.5)
 - Mounting angle corrections (±45°)
 - Movement balance (±50%)
+- Switch input mode (INPUT_PULLUP or INPUT, default: INPUT_PULLUP)
 
 ## Important Code Locations
 
