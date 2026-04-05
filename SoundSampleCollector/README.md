@@ -102,14 +102,14 @@ python receive_samples.py --port COM3               # Windows
 ```
 samples/
   click_left/
-    0001.wav    # 60秒の連続録音
-    0002.wav
+    click_left.0001.wav    # 60秒の連続録音
+    click_left.0002.wav
     ...
   click_right/
-    0001.wav
+    click_right.0001.wav
     ...
   noise/
-    0001.wav
+    noise.0001.wav
     ...
 ```
 

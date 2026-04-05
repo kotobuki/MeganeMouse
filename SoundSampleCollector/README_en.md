@@ -102,14 +102,14 @@ This workflow eliminates the need to produce sounds in precise synchronization w
 ```
 samples/
   click_left/
-    0001.wav    # 60 seconds of continuous audio
-    0002.wav
+    click_left.0001.wav    # 60 seconds of continuous audio
+    click_left.0002.wav
     ...
   click_right/
-    0001.wav
+    click_right.0001.wav
     ...
   noise/
-    0001.wav
+    noise.0001.wav
     ...
 ```
 
