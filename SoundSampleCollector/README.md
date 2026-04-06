@@ -50,22 +50,21 @@ pip install pyserial
 ### 1. PCで受信スクリプトを起動
 
 ```bash
-python receive_samples.py --port /dev/cu.usbmodem*  # macOS
-python receive_samples.py --port /dev/ttyACM0       # Linux
-python receive_samples.py --port COM3               # Windows
+python receive_samples.py --port /dev/cu.usbmodem* --label click_left # macOS
+python receive_samples.py --port /dev/ttyACM0 --label click_left      # Linux
+python receive_samples.py --port COM3 --label click_left              # Windows
 ```
 
 ### 2. 連続録音
 
-本スケッチは**連続録音モード**を採用しています。1回のクリックで60秒間（デフォルト）の連続録音を行い、終了後に自動的にPCへ転送します。
+本スケッチは**連続録音モード**を採用しています。1回のボタン（AtomS3Rの画面）クリックで60秒間（デフォルト）の連続録音を行い、終了後に自動的にPCへ転送します。
 
 **操作方法：**
 
-| 操作               | 待機中           | 録音中         |
-| ------------------ | ---------------- | -------------- |
-| **クリック**       | 録音を開始       | 録音を途中停止 |
-| **ダブルクリック** | クラス切替       | -              |
-| **長押し**         | マイクゲイン切替 | -              |
+| 操作         | 待機中           | 録音中         |
+| ------------ | ---------------- | -------------- |
+| **クリック** | 録音を開始       | 録音を途中停止 |
+| **長押し**   | マイクゲイン切替 | -              |
 
 **録音の流れ：**
 
@@ -78,7 +77,7 @@ python receive_samples.py --port COM3               # Windows
 
 > **※カウントダウンの動作について：**
 >
-> - **PDMマイク使用時**：スピーカーが存在しないため、LCD画面上の数字と点滅（視覚表示）のみでカウントダウンを行います。
+> - **PDMマイク使用時**：スピーカーがないため、LCD画面上の数字と点滅（視覚表示）のみでカウントダウンを行います。
 > - **Atomic Echo Base使用時**：内蔵スピーカーを使用し、画面表示に加えてビープ音（3・2・1）が鳴ります。
 
 ### 3. Edge Impulseでの分割
@@ -91,7 +90,7 @@ python receive_samples.py --port COM3               # Windows
 
 ### 4. LCD表示
 
-- **紺**：待機中（クラス名・録音数・ゲイン・録音時間を表示）
+- **紺**：待機中（合計録音数・ゲイン・録音時間を表示）
 - **紺＋大きい数字**：カウントダウン中（3→2→1）
 - **赤**：録音中（経過秒数とプログレスバーを表示）
 - **オレンジ**：送信中（プログレスバー表示）
@@ -102,7 +101,7 @@ python receive_samples.py --port COM3               # Windows
 ```
 samples/
   click_left/
-    click_left.0001.wav    # 60秒の連続録音
+    click_left.0001.wav
     click_left.0002.wav
     ...
   click_right/
@@ -119,12 +118,12 @@ samples/
 
 ### ワークフロー例
 
-1. ダブルクリックで`click_left`クラスを選択
-2. クリックで録音開始
-3. 60秒間、自分のペースで左クリック用の音を繰り返し発音
+1. 最初のクラスを指定（例：`--label click_left`）して`receive_samples.py`を実行
+2. AtomS3Rのボタンをクリックして録音開始
+3. 60秒間、自分のペースで最初のクラス用の音を繰り返し発音
 4. 自動転送を待つ
-5. Edge Impulseにアップロード→分割→不要な区間を削除
-6. `click_right`、`noise` も同様に繰り返す
+5. 最初のクラス分を十分に収集できたら`receive_samples.py`を終了し、他のクラスについても同様に繰り返す
+6. Edge Impulseにアップロード→分割（Split sample）→ 不要な区間を削除
 
 ### noiseクラスの録音
 

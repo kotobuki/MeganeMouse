@@ -33,6 +33,7 @@ import base64
 import os
 import sys
 import time
+import re
 from datetime import datetime
 from pathlib import Path
 
@@ -134,12 +135,44 @@ def get_wav_info(data):
 # Sample receiver
 # ============================================================
 
-def save_sample(wav_data, class_name, index, output_dir):
-    """Save WAV data to a file in the appropriate class folder."""
+def get_next_index(class_dir, class_name):
+    """
+    Finds the maximum index among existing files in the target directory
+    and returns the next available index. 
+    This safely handles cases where intermediate files have been deleted 
+    or unrelated files exist in the same directory.
+    """
+    max_idx = -1
+    # Regex to match files like: class_name.0012.wav
+    pattern = re.compile(rf"^{re.escape(class_name)}\.(\d+)\.wav$")
+    
+    if not class_dir.exists():
+        return 0
+
+    for filepath in class_dir.iterdir():
+        if filepath.is_file():
+            match = pattern.match(filepath.name)
+            if match:
+                idx = int(match.group(1))
+                if idx > max_idx:
+                    max_idx = idx
+                    
+    return max_idx + 1
+
+
+def save_sample(wav_data, class_name, output_dir):
+    """
+    Save WAV data to a file in the appropriate class folder 
+    with a safely generated sequential index.
+    """
     class_dir = Path(output_dir) / class_name
     class_dir.mkdir(parents=True, exist_ok=True)
 
-    filename = f"{class_name}.{index:04d}.wav"
+    # Generate a safe sequential index based on existing files on the PC,
+    # ignoring any index sequence provided by the Arduino.
+    next_index = get_next_index(class_dir, class_name)
+
+    filename = f"{class_name}.{next_index:04d}.wav"
     filepath = class_dir / filename
     filepath.write_bytes(wav_data)
 
@@ -230,7 +263,7 @@ def receive_one_sample(ser):
     return class_name, index, wav_data
 
 
-def run_receiver(port, baud, output_dir):
+def run_receiver(port, baud, output_dir, label):
     """Main receiver loop."""
     print(f"Opening serial port: {port} @ {baud} baud")
     ser = open_serial(port, baud)
@@ -261,7 +294,7 @@ def run_receiver(port, baud, output_dir):
                 continue
 
             # Save the file
-            filepath = save_sample(wav_data, class_name, index, output_dir)
+            filepath = save_sample(wav_data, label, output_dir)
 
             # Update counts
             class_totals[class_name] = class_totals.get(class_name, 0) + 1
@@ -329,11 +362,11 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  %(prog)s --port /dev/ttyACM0              # Linux
-  %(prog)s --port /dev/cu.usbmodem*         # macOS
-  %(prog)s --port COM3                      # Windows
-  %(prog)s --port COM3 --output my_samples  # Custom output folder
-  %(prog)s --list-ports                     # Show available ports
+  %(prog)s --port /dev/ttyACM0 --label click          # Linux
+  %(prog)s --port /dev/cu.usbmodem* --label noise     # macOS
+  %(prog)s --port COM3 --label click                  # Windows
+  %(prog)s --port COM3 --label click --output custom  # Custom output folder
+  %(prog)s --list-ports                               # Show available ports
         """
     )
 
@@ -348,6 +381,10 @@ Examples:
         help=f"Baud rate (default: {DEFAULT_BAUD})"
     )
     parser.add_argument(
+        "--label", "-L",
+        help="Target class name for the audio (e.g., click, noise) [Required for receiving]"
+    )
+    parser.add_argument(
         "--output", "-o",
         default=DEFAULT_OUTPUT_DIR,
         help=f"Output directory (default: {DEFAULT_OUTPUT_DIR})"
@@ -359,8 +396,8 @@ Examples:
     )
     parser.add_argument(
         "--command", "-c",
-        choices=["REC", "CLASS", "STATUS"],
-        help="Send a command to the device (REC=record, CLASS=next class, STATUS=query)"
+        choices=["REC", "STATUS"],
+        help="Send a command to the device (REC=record, STATUS=query)"
     )
 
     args = parser.parse_args()
@@ -377,7 +414,22 @@ Examples:
     if args.command:
         send_command(args.port, args.baud, args.command)
     else:
-        run_receiver(args.port, args.baud, args.output)
+        # Require --label when entering the normal receiving loop
+        if not args.label:
+            print("Error: --label is required for receiving samples.")
+            parser.print_help()
+            sys.exit(1)
+            
+        print("=========================================")
+        print(" MeganeMouse Sound Sample Collector      ")
+        print("=========================================")
+        print(f" Port        : {args.port}")
+        print(f" Target Label: {args.label}")
+        print(f" Output Dir  : {args.output}")
+        print("=========================================\n")
+        
+        # Pass args.label to run_receiver so it can be used in save_sample()
+        run_receiver(args.port, args.baud, args.output, args.label)
 
 
 if __name__ == "__main__":

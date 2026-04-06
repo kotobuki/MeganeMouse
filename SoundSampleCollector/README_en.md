@@ -50,22 +50,21 @@ pip install pyserial
 ### 1. Start the receiver script on the PC
 
 ```bash
-python receive_samples.py --port /dev/cu.usbmodem*  # macOS
-python receive_samples.py --port /dev/ttyACM0       # Linux
-python receive_samples.py --port COM3               # Windows
+python receive_samples.py --port /dev/cu.usbmodem* --label click_left # macOS
+python receive_samples.py --port /dev/ttyACM0 --label click_left      # Linux
+python receive_samples.py --port COM3 --label click_left              # Windows
 ```
 
 ### 2. Continuous recording
 
-This sketch uses a **continuous recording mode**. A single click starts a 60-second (default) recording session. After recording, the WAV file is automatically transferred to the PC.
+This sketch uses a **continuous recording mode**. A single button (i.e., AtomS3R's screen) click starts a 60-second (default) recording session. After recording, the WAV file is automatically transferred to the PC.
 
 **Button operations:**
 
-| Action           | While idle            | While recording |
-| ---------------- | --------------------- | --------------- |
-| **Click**        | Start recording       | Stop early      |
-| **Double-click** | Cycle to next class   | -               |
-| **Long press**   | Cycle microphone gain | -               |
+| Action         | While idle            | While recording |
+| -------------- | --------------------- | --------------- |
+| **Click**      | Start recording       | Stop early      |
+| **Long press** | Cycle microphone gain | -               |
 
 **Recording flow:**
 
@@ -91,7 +90,7 @@ This workflow eliminates the need to produce sounds in precise synchronization w
 
 ### 4. LCD display
 
-- **Navy**: Idle (shows class name, sample count, gain level, recording duration)
+- **Navy**: Idle (shows total sample count, gain level, recording duration)
 - **Navy + large number**: Countdown (3 → 2 → 1)
 - **Red**: Recording (shows elapsed seconds and progress bar)
 - **Orange**: Transferring (progress bar)
@@ -102,7 +101,7 @@ This workflow eliminates the need to produce sounds in precise synchronization w
 ```
 samples/
   click_left/
-    click_left.0001.wav    # 60 seconds of continuous audio
+    click_left.0001.wav
     click_left.0002.wav
     ...
   click_right/
@@ -117,14 +116,14 @@ Each WAV file is 16kHz / 16bit / mono.
 
 ## Recording tips
 
-### Example workflow
+### Example Workflow
 
-1. Double-click to select the `click_left` class
-2. Click to start recording
-3. Produce left-click sounds at your own pace for 60 seconds
-4. Wait for the automatic transfer to complete
-5. Upload to Edge Impulse → split into samples → delete unsuitable segments
-6. Repeat for `click_right` and `noise`
+1. Run `receive_samples.py` specifying your target class (e.g., `--label click_left`).
+2. Click the button on the AtomS3R to start recording.
+3. For 60 seconds, repeatedly make the sound for the target class at your own pace.
+4. Wait for the automatic data transfer to complete.
+5. Once you have collected enough samples for the first class, stop `receive_samples.py` and repeat the process for other classes.
+6. Upload the WAV files to Edge Impulse -> Split sample -> Delete unnecessary segments.
 
 ### Recording noise samples
 

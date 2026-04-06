@@ -31,9 +31,6 @@
 #define TOTAL_PCM_SIZE (TOTAL_SAMPLES * 2)
 #define WAV_HEADER_SIZE 44
 
-#define NUM_CLASSES 3
-const char* CLASS_NAMES[NUM_CLASSES] = { "click_left", "click_right", "noise" };
-
 #define B64_RAW_CHUNK 57
 
 // ============================================================
@@ -46,9 +43,9 @@ const char* CLASS_NAMES[NUM_CLASSES] = { "click_left", "click_right", "noise" };
 #define PDM_DAT_PIN 2
 #define PDM_CLK_PIN 1
 
-#define NUM_GAIN_LEVELS 4
-const uint8_t GAIN_VALUES[NUM_GAIN_LEVELS] = { 1, 2, 4, 8 };
-const char* GAIN_LABELS[NUM_GAIN_LEVELS] = { "x1", "x2", "x4", "x8" };
+#define NUM_GAIN_LEVELS 5
+const uint8_t GAIN_VALUES[NUM_GAIN_LEVELS] = { 1, 2, 4, 8, 16 };
+const char* GAIN_LABELS[NUM_GAIN_LEVELS] = { "x1", "x2", "x4", "x8", "x16" };
 
 #else
 
@@ -102,8 +99,7 @@ const char* GAIN_LABELS[NUM_GAIN_LEVELS] = { "6dB", "18dB", "30dB", "42dB" };
 // ============================================================
 
 int16_t* recBuffer = nullptr;
-int currentClass = 0;
-int classCounts[NUM_CLASSES] = { 0, 0, 0 };
+int totalRecords = 0;
 int currentGain = 1;
 bool recording = false;
 
@@ -293,10 +289,10 @@ void drawCentered(const char* text, int y, float textSize) {
 void updateDisplay() {
   M5.Display.fillScreen(TFT_NAVY);
   M5.Display.setTextColor(TFT_WHITE);
-  drawCentered(CLASS_NAMES[currentClass], 8, 1.0);
+  drawCentered("Sample Collector", 8, 1.0);
 
   char buf[32];
-  snprintf(buf, sizeof(buf), "Count:%d", classCounts[currentClass]);
+  snprintf(buf, sizeof(buf), "Count:%d", totalRecords);
   drawCentered(buf, 35, 2.0);
 
   snprintf(buf, sizeof(buf), "Gain:%s", GAIN_LABELS[currentGain]);
@@ -312,7 +308,6 @@ void showRecording(int elapsed, int total) {
   M5.Display.fillScreen(TFT_RED);
   M5.Display.setTextColor(TFT_WHITE);
   drawCentered("REC", 10, 2.0);
-  drawCentered(CLASS_NAMES[currentClass], 40, 1.0);
 
   char buf[32];
   snprintf(buf, sizeof(buf), "%d / %d s", elapsed, total);
@@ -347,7 +342,7 @@ void showDone(int seconds) {
   snprintf(buf, sizeof(buf), "%ds saved", seconds);
   drawCentered(buf, 70, 1.5);
 
-  snprintf(buf, sizeof(buf), "#%d", classCounts[currentClass]);
+  snprintf(buf, sizeof(buf), "#%d", totalRecords);
   drawCentered(buf, 100, 1.5);
 }
 
@@ -412,8 +407,8 @@ void sendWAVOverSerial(int recordedSeconds) {
   uint32_t pcm_size = (uint32_t)recordedSeconds * SAMPLES_PER_SECOND * 2;
   uint32_t wav_size = WAV_HEADER_SIZE + pcm_size;
 
-  int idx = classCounts[currentClass] + 1;
-  Serial.printf(">>>WAV_START:%s:%04d\n", CLASS_NAMES[currentClass], idx);
+  totalRecords++;
+  Serial.printf(">>>WAV_START:sample:%04d\n", totalRecords);
 
   uint8_t header[WAV_HEADER_SIZE];
   buildWAVHeader(header, pcm_size);
@@ -445,7 +440,6 @@ void sendWAVOverSerial(int recordedSeconds) {
   Serial.println("<<<WAV_END");
   Serial.flush();
 
-  classCounts[currentClass] = idx;
   Serial.printf("  Transferred: %d bytes (%ds WAV)\n", wav_size, recordedSeconds);
 }
 
@@ -471,7 +465,6 @@ bool runCountdown() {
     M5.Display.print(n);
 
     M5.Display.setTextSize(1);
-    drawCentered(CLASS_NAMES[currentClass], 80, 1.0);
     char buf[32];
     snprintf(buf, sizeof(buf), "%ds recording", CONTINUOUS_DURATION_SEC);
     drawCentered(buf, 95, 1.0);
@@ -520,7 +513,7 @@ bool runCountdown() {
 void recordSession() {
   recording = true;
   Serial.println();
-  Serial.printf("=== Recording session: class=%s, duration=%ds ===\n", CLASS_NAMES[currentClass], CONTINUOUS_DURATION_SEC);
+  Serial.printf("=== Recording session: duration=%ds ===\n", CONTINUOUS_DURATION_SEC);
 
   if (runCountdown()) {
     Serial.println("  Cancelled during countdown");
@@ -626,7 +619,7 @@ void setup() {
   Serial.printf("  Mic: enabled=%s\n", M5.Mic.isEnabled() ? "true" : "false");
 
   updateDisplay();
-  Serial.println("[READY] Click=Record, DblClick=Class, LongPress=Gain");
+  Serial.println("[READY] Click=Record, LongPress=Gain");
 }
 
 // ============================================================
@@ -643,23 +636,11 @@ void loop() {
     cmd.trim();
     if (cmd == "REC") {
       recordSession();
-    } else if (cmd == "CLASS") {
-      currentClass = (currentClass + 1) % NUM_CLASSES;
-      Serial.printf("CLASS_CHANGED:%s\n", CLASS_NAMES[currentClass]);
-      updateDisplay();
-    } else if (cmd == "STATUS") {
-      Serial.printf("STATUS:%s:%d:%s:%ds\n", CLASS_NAMES[currentClass], classCounts[currentClass], GAIN_LABELS[currentGain], CONTINUOUS_DURATION_SEC);
     }
   }
 
   if (M5.BtnA.wasClicked()) {
     recordSession();
-  }
-
-  if (M5.BtnA.wasDoubleClicked()) {
-    currentClass = (currentClass + 1) % NUM_CLASSES;
-    Serial.printf("CLASS_CHANGED:%s\n", CLASS_NAMES[currentClass]);
-    updateDisplay();
   }
 
   if (M5.BtnA.wasHold()) {
