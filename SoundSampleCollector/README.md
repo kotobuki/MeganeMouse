@@ -53,6 +53,15 @@ pip install pyserial
 python receive_samples.py --port /dev/cu.usbmodem* --label click_left # macOS
 python receive_samples.py --port /dev/ttyACM0 --label click_left      # Linux
 python receive_samples.py --port COM3 --label click_left              # Windows
+
+# 利用可能なシリアルポートの一覧表示
+python receive_samples.py --list-ports
+
+# 出力フォルダを指定する場合
+python receive_samples.py --port /dev/ttyACM0 --label click_left --output ./my_samples
+
+# PCからコマンドで録音を開始する場合（ボタンを押さずに録音トリガー）
+python receive_samples.py --port /dev/ttyACM0 --command REC
 ```
 
 ### 2. 連続録音
@@ -101,14 +110,14 @@ python receive_samples.py --port COM3 --label click_left              # Windows
 ```
 samples/
   click_left/
+    click_left.0000.wav
     click_left.0001.wav
-    click_left.0002.wav
     ...
   click_right/
-    click_right.0001.wav
+    click_right.0000.wav
     ...
   noise/
-    noise.0001.wav
+    noise.0000.wav
     ...
 ```
 
