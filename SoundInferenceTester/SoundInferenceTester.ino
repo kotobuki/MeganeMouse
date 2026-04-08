@@ -45,7 +45,7 @@
 #define PDM_DAT_PIN 2
 #define PDM_CLK_PIN 1
 // PDM Software magnification (Software Gain)
-uint8_t currentGainMultiplier = 4;  // x4. Adjust as needed (1, 2, 4, 8)
+uint8_t currentGainMultiplier = 8;  // x8. Adjust as needed (1, 2, 4, 8)
 #else
 #define ECHO_I2S_DIN 7
 #define ECHO_I2S_WS 6
@@ -289,7 +289,7 @@ static void inference_task(void* arg) {
     if (max_idx == -1) continue;  // Should not happen with non-empty model
 
     const char* label = result.classification[max_idx].label;
-    bool is_noise = (strcmp(label, "noise") == 0) || (strcmp(label, "z_openset") == 0);
+    bool is_noise = (strcmp(label, "background_noise") == 0) || (strcmp(label, "impulsive_noise") == 0);
 
     // Click detection with debounce
     if (!is_noise && max_val >= CLICK_THRESHOLD) {
