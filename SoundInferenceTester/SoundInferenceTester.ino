@@ -53,7 +53,7 @@ uint8_t currentGainMultiplier = 8;  // x8. Adjust as needed (1, 2, 4, 8)
 #define ECHO_I2C_SDA 38
 #define ECHO_I2C_SCL 39
 #define ES8311_ADDR 0x18
-// ES8311 ADCレジスタゲイン (Hardware Gain)
+// ES8311 ADC register gain (Hardware Gain)
 uint8_t currentGainReg = 7;  // e.g., 1,3,5,7 (+24dB to +42dB)
 #endif
 
@@ -154,7 +154,7 @@ bool es8311_init_codec(uint8_t mic_gain) {
   es8311_write_reg(0x32, 0xBF);
   es8311_write_reg(0x31, 0x60);  // Mute DAC to prevent noise
 
-  // Microphonne setup
+  // Microphone setup
   es8311_write_reg(0x14, 0x1A);
   es8311_write_reg(0x17, 0xBF);
   es8311_write_reg(0x16, mic_gain);  // Set Hardware Mic Gain
@@ -250,6 +250,11 @@ static void inference_task(void* arg) {
 
   uint32_t last_click_detect_time = 0;
 
+  // State variables for smoothing (consecutive frame detection)
+  int last_valid_class_idx = -1;
+  int consecutive_count = 0;
+  const int REQUIRED_CONSECUTIVE_FRAMES = 2;  // Number of consecutive detections required to confirm an event
+
   while (1) {
     if (!record_status) {
       vTaskDelay(10);
@@ -291,25 +296,45 @@ static void inference_task(void* arg) {
     const char* label = result.classification[max_idx].label;
     bool is_noise = (strcmp(label, "background_noise") == 0) || (strcmp(label, "impulsive_noise") == 0);
 
-    // Click detection with debounce
-    if (!is_noise && max_val >= CLICK_THRESHOLD) {
-      uint32_t now = millis();
-      if (now - last_click_detect_time > CLICK_DEBOUNCE_MS) {
-        last_click_detect_time = now;
+    // Consecutive detection (smoothing) + time-based debounce
+    if (max_val >= CLICK_THRESHOLD) {
+      // Same class detected consecutively as last time
+      if (max_idx == last_valid_class_idx) {
+        consecutive_count++;
+      } else {
+        // Different class detected — reset and start count from 1
+        last_valid_class_idx = max_idx;
+        consecutive_count = 1;
+      }
 
-        // --- Core 0 -> Core 1 Communication using Queue ---
-        if (click_queue != NULL) {
-          ClickEvent_t event;
-          strlcpy(event.class_name, label, CLICK_INFER_CLASS_NAME_MAX_LEN);
-          event.probability = max_val;
-          event.timestamp_ms = now;
+      // Proceed only when the count reaches exactly the required number (prevents spam)
+      if (consecutive_count == REQUIRED_CONSECUTIVE_FRAMES) {
+        // Check if it's a valid non-noise event (click, long_press, etc.)
+        if (!is_noise) {
+          uint32_t now = millis();
+          // Also apply the existing time-based debounce (prevents rapid-fire events)
+          if (now - last_click_detect_time >= CLICK_DEBOUNCE_MS) {
+            last_click_detect_time = now;
 
-          // Send event, do not block if queue is full
-          if (xQueueSend(click_queue, &event, 0) != pdPASS) {
-            ei_printf("ERR: Click queue full, event dropped.\n");
+            // --- Core 0 -> Core 1 Communication using Queue ---
+            if (click_queue != NULL) {
+              ClickEvent_t event;
+              strlcpy(event.class_name, label, CLICK_INFER_CLASS_NAME_MAX_LEN);
+              event.probability = max_val;
+              event.timestamp_ms = now;
+
+              // Send event, do not block if queue is full
+              if (xQueueSend(click_queue, &event, 0) != pdPASS) {
+                ei_printf("ERR: Click queue full, event dropped.\n");
+              }
+            }
           }
         }
       }
+    } else {
+      // No class exceeded CLICK_THRESHOLD — fully reset state
+      last_valid_class_idx = -1;
+      consecutive_count = 0;
     }
 
     // Periodic log
