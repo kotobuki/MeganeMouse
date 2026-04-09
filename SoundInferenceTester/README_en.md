@@ -8,6 +8,7 @@ It performs continuous inference on audio captured from the microphone and outpu
 
 - **Dual-Core (FreeRTOS) Architecture:** Audio capture and machine learning inference are handled by dedicated tasks on Core 0, leaving Core 1 completely free for the main loop (UI updates and future BLE/mouse control).
 - **Real-time Monitoring:** Use the Serial Monitor to observe click detection probabilities and noise classification in real-time.
+- **Robust Click Detection:** Combines consecutive frame confirmation (a click is only registered after the same non-noise class exceeds the threshold for 2 consecutive inference frames) with a 500ms time-based debounce to suppress false positives while maintaining responsiveness.
 
 ## Hardware Requirements
 
